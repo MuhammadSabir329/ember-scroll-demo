@@ -1,0 +1,9 @@
+{
+  "name": "ember-coffee-composition",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "npx hyperframes check",
+    "render": "npx hyperframes render --output out/coffee-master.mp4"
+  }
+}

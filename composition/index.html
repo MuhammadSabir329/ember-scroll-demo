@@ -1,0 +1,1149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1920, height=1080" />
+  <title>Ember — Artisanal Coffee Making Journey</title>
+  <script src="gsap.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      margin: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: #080504;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #root {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      background: #080504;
+    }
+    #viewport {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1920px;
+      height: 1080px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div
+    id="root"
+    data-composition-id="main"
+    data-start="0"
+    data-duration="24"
+    data-width="1920"
+    data-height="1080"
+    data-fps="30"
+  >
+    <canvas id="viewport" width="1920" height="1080" data-layout-allow-overflow></canvas>
+  </div>
+
+  <script>
+    // =========================================================================
+    // EMBER: DETERMINISTIC 5-STAGE PROCEDURAL COFFEE JOURNEY (24.0s @ 30FPS)
+    // 100% Procedural Canvas Engine — Pure function of time t [0.0 .. 24.0]
+    // =========================================================================
+
+    const canvas = document.getElementById('viewport');
+    const ctx = canvas.getContext('2d');
+
+    // Deterministic PRNG
+    function mulberry32(a) {
+      return function() {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    const clamp = (v, min = 0, max = 1) => Math.min(max, Math.max(min, v));
+    const smoothstep = (min, max, val) => {
+      const x = clamp((val - min) / (max - min), 0, 1);
+      return x * x * (3 - 2 * x);
+    };
+    const lerp = (a, b, f) => a + (b - a) * f;
+
+    // Precompute Stage 1 Beans Data (36 beans)
+    const rng1 = mulberry32(42);
+    const BEANS = [];
+    for (let i = 0; i < 36; i++) {
+      const isHero = (i === 0);
+      const angle = rng1() * Math.PI * 2;
+      const dist = isHero ? 0 : 120 + rng1() * 700;
+      BEANS.push({
+        isHero,
+        startX: isHero ? 960 - 250 : 960 + Math.cos(angle) * (dist + 300),
+        startY: isHero ? -180 : -100 - rng1() * 400,
+        targetX: isHero ? 960 : 960 + Math.cos(angle) * dist,
+        targetY: isHero ? 540 : 540 + Math.sin(angle) * (dist * 0.58) + (rng1() - 0.5) * 80,
+        rotStart: (rng1() - 0.5) * 8,
+        rotEnd: (rng1() - 0.5) * 3,
+        scale: isHero ? 1.45 : 0.85 + rng1() * 0.45,
+        dropDelay: isHero ? 0.8 : rng1() * 1.5,
+        dropDuration: 1.4 + rng1() * 0.8,
+        bounceFreq: 2.8 + rng1() * 1.5,
+        colorTone: rng1()
+      });
+    }
+
+    // Precompute Stage 2 Grinding Particles (320 grounds)
+    const rng2 = mulberry32(108);
+    const GROUNDS = [];
+    for (let i = 0; i < 320; i++) {
+      GROUNDS.push({
+        angleOffset: (rng2() - 0.5) * 0.75,
+        speed: 380 + rng2() * 640,
+        cycleOffset: rng2() * 4.0,
+        size: 1.5 + rng2() * 3.2,
+        wobble: 12 + rng2() * 24,
+        wobbleFreq: 8 + rng2() * 14,
+        hueVar: rng2()
+      });
+    }
+
+    // Precompute Floating Embers (60 embers)
+    const rng5 = mulberry32(999);
+    const EMBERS = [];
+    for (let i = 0; i < 60; i++) {
+      EMBERS.push({
+        baseX: 180 + rng5() * 1560,
+        baseY: 1080 + rng5() * 300,
+        speed: 90 + rng5() * 160,
+        size: 2.2 + rng5() * 4.8,
+        swayAmp: 25 + rng5() * 55,
+        swayFreq: 1.2 + rng5() * 2.2,
+        phase: rng5() * Math.PI * 2,
+        heat: rng5()
+      });
+    }
+
+    // =========================================================================
+    // RENDER FUNCTIONS PER STAGE (Local time: 0.0 .. 4.8)
+    // =========================================================================
+
+    // Stage 1: Tumbling & Selected Coffee Beans
+    function renderStage1(t, alpha) {
+      if (alpha <= 0.001) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      // Camera pan / dolly
+      const camScale = 1.0 + smoothstep(0, 4.8, t) * 0.12;
+      const camX = smoothstep(0, 4.8, t) * -20;
+      const camY = smoothstep(0, 4.8, t) * -15;
+
+      ctx.translate(960 + camX, 540 + camY);
+      ctx.scale(camScale, camScale);
+      ctx.translate(-960, -540);
+
+      // Rustic dark slate surface
+      const slateGrad = ctx.createRadialGradient(960, 540, 100, 960, 540, 1050);
+      slateGrad.addColorStop(0, '#1c130d');
+      slateGrad.addColorStop(0.45, '#130c08');
+      slateGrad.addColorStop(1, '#070403');
+      ctx.fillStyle = slateGrad;
+      ctx.fillRect(0, 0, 1920, 1080);
+
+      // Subtle warm table caustics
+      const warmTable = ctx.createRadialGradient(960, 540, 0, 960, 540, 700);
+      warmTable.addColorStop(0, 'rgba(255, 120, 30, 0.12)');
+      warmTable.addColorStop(0.6, 'rgba(180, 60, 10, 0.04)');
+      warmTable.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = warmTable;
+      ctx.fillRect(0, 0, 1920, 1080);
+
+      // Draw beans
+      for (let i = 0; i < BEANS.length; i++) {
+        const b = BEANS[i];
+        const localT = t - b.dropDelay;
+        if (localT < 0) continue;
+
+        const progress = clamp(localT / b.dropDuration, 0, 1);
+        const ease = 1 - Math.pow(1 - progress, 3);
+
+        let curX = lerp(b.startX, b.targetX, ease);
+        let curY = lerp(b.startY, b.targetY, ease);
+
+        // Bouncing dampening
+        if (progress > 0.45 && progress < 1.0) {
+          const bounceT = (progress - 0.45) / 0.55;
+          const bounceAmp = Math.sin(bounceT * Math.PI * b.bounceFreq) * (1 - bounceT) * 35;
+          curY -= Math.max(0, bounceAmp);
+        }
+
+        const rot = lerp(b.rotStart, b.rotEnd, ease);
+
+        // Drop shadow
+        ctx.save();
+        ctx.translate(curX, curY + 18 * b.scale);
+        ctx.rotate(rot);
+        ctx.scale(b.scale, b.scale * 0.45);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 42, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // Bean body
+        ctx.save();
+        ctx.translate(curX, curY);
+        ctx.rotate(rot);
+        ctx.scale(b.scale, b.scale);
+
+        // Outer 3D Bean Contour
+        const beanGrad = ctx.createLinearGradient(-35, -20, 35, 25);
+        if (b.isHero) {
+          beanGrad.addColorStop(0, '#5a3118');
+          beanGrad.addColorStop(0.35, '#3b1c0c');
+          beanGrad.addColorStop(0.75, '#241007');
+          beanGrad.addColorStop(1, '#150904');
+        } else {
+          beanGrad.addColorStop(0, '#432210');
+          beanGrad.addColorStop(0.4, '#2d1509');
+          beanGrad.addColorStop(1, '#160803');
+        }
+
+        ctx.fillStyle = beanGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 40, 26, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Bean center crease (crevice)
+        ctx.strokeStyle = '#0e0502';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(-32, 0);
+        ctx.bezierCurveTo(-12, -7, 12, 7, 32, 0);
+        ctx.stroke();
+
+        // Inner roast glow in crevice
+        ctx.strokeStyle = 'rgba(215, 135, 60, 0.45)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(-28, 0);
+        ctx.bezierCurveTo(-10, -5, 10, 5, 28, 0);
+        ctx.stroke();
+
+        // Specular highlight curve
+        ctx.strokeStyle = b.isHero ? 'rgba(255, 220, 175, 0.55)' : 'rgba(255, 210, 160, 0.28)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(4, -10, 22, Math.PI * 1.1, Math.PI * 1.7);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // Hero Bean Spotlight (appears at t >= 1.8s)
+      const spotAlpha = smoothstep(1.8, 3.2, t);
+      if (spotAlpha > 0) {
+        ctx.save();
+        const beamGrad = ctx.createLinearGradient(960, 0, 960, 540);
+        beamGrad.addColorStop(0, `rgba(255, 175, 60, ${0.35 * spotAlpha})`);
+        beamGrad.addColorStop(0.75, `rgba(255, 145, 40, ${0.18 * spotAlpha})`);
+        beamGrad.addColorStop(1, 'rgba(255, 120, 20, 0)');
+
+        ctx.fillStyle = beamGrad;
+        ctx.beginPath();
+        ctx.moveTo(960 - 80, 0);
+        ctx.lineTo(960 + 80, 0);
+        ctx.lineTo(960 + 260, 620);
+        ctx.lineTo(960 - 260, 620);
+        ctx.closePath();
+        ctx.fill();
+
+        // Golden floor pool
+        const poolGrad = ctx.createRadialGradient(960, 550, 10, 960, 550, 220);
+        poolGrad.addColorStop(0, `rgba(255, 195, 80, ${0.45 * spotAlpha})`);
+        poolGrad.addColorStop(0.5, `rgba(255, 130, 30, ${0.22 * spotAlpha})`);
+        poolGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = poolGrad;
+        ctx.beginPath();
+        ctx.ellipse(960, 555, 220, 120, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Golden floating dust motes
+        for (let j = 0; j < 24; j++) {
+          const mAngle = (j * 0.45) + t * 0.35;
+          const mDist = 45 + ((j * 37) % 150);
+          const mx = 960 + Math.cos(mAngle) * mDist;
+          const my = 530 + Math.sin(mAngle) * (mDist * 0.55) - (j * 4) + Math.sin(t * 2 + j) * 12;
+          const mSize = 1.5 + ((j % 3) * 0.8);
+          ctx.fillStyle = `rgba(255, 225, 140, ${spotAlpha * (0.4 + 0.3 * Math.sin(t * 3 + j))})`;
+          ctx.beginPath();
+          ctx.arc(mx, my, mSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // Stage 2: Conical Burr Grinder & Ground Pile
+    function renderStage2(t2, alpha) {
+      if (alpha <= 0.001) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      const camY = smoothstep(0, 4.8, t2) * 60;
+      ctx.translate(0, camY);
+
+      // Grinder housing background
+      const houseGrad = ctx.createRadialGradient(960, 280, 50, 960, 540, 900);
+      houseGrad.addColorStop(0, '#1c1b19');
+      houseGrad.addColorStop(0.5, '#121110');
+      houseGrad.addColorStop(1, '#060505');
+      ctx.fillStyle = houseGrad;
+      ctx.fillRect(0, -100, 1920, 1280);
+
+      // Atmospheric dark amber vignette
+      const amb = ctx.createRadialGradient(960, 480, 100, 960, 480, 750);
+      amb.addColorStop(0, 'rgba(215, 110, 25, 0.15)');
+      amb.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = amb;
+      ctx.fillRect(0, -100, 1920, 1280);
+
+      // Conical Burr Assembly at Top (Center 960, 200)
+      const burrAngle = t2 * 14.0;
+
+      ctx.save();
+      ctx.translate(960, 200);
+
+      // Outer stationary ring
+      ctx.strokeStyle = '#2c2d30';
+      ctx.lineWidth = 28;
+      ctx.beginPath();
+      ctx.arc(0, 0, 260, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Outer ring teeth
+      ctx.strokeStyle = '#1b1c1e';
+      ctx.lineWidth = 4;
+      for (let k = 0; k < 32; k++) {
+        const a = (k / 32) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * 246, Math.sin(a) * 246);
+        ctx.lineTo(Math.cos(a + 0.08) * 274, Math.sin(a + 0.08) * 274);
+        ctx.stroke();
+      }
+
+      // Spinning inner cone burr
+      ctx.rotate(burrAngle);
+      const coneGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, 210);
+      coneGrad.addColorStop(0, '#565c63');
+      coneGrad.addColorStop(0.4, '#383d42');
+      coneGrad.addColorStop(0.85, '#1e2023');
+      coneGrad.addColorStop(1, '#111214');
+      ctx.fillStyle = coneGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, 210, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Spiral cutting flutes
+      for (let f = 0; f < 14; f++) {
+        const fa = (f / 14) * Math.PI * 2;
+        ctx.strokeStyle = (f % 2 === 0) ? '#727982' : '#232528';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(Math.cos(fa + 0.4) * 110, Math.sin(fa + 0.4) * 110, Math.cos(fa) * 210, Math.sin(fa) * 210);
+        ctx.stroke();
+      }
+
+      // Central axle bolt
+      ctx.fillStyle = '#222528';
+      ctx.beginPath();
+      ctx.arc(0, 0, 32, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#9ca4ad';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
+      ctx.restore();
+
+      // Cascade of Coffee Grounds Spraying Down
+      const cascadeStart = 340;
+      for (let i = 0; i < GROUNDS.length; i++) {
+        const g = GROUNDS[i];
+        const localTime = (t2 * 1.8 + g.cycleOffset) % 2.4;
+        const pNorm = localTime / 2.4;
+
+        const spreadX = Math.sin(g.angleOffset) * pNorm * 380;
+        const wobbleX = Math.sin(t2 * g.wobbleFreq + i) * g.wobble;
+        const px = 960 + spreadX + wobbleX;
+        const py = cascadeStart + pNorm * pNorm * 520;
+
+        if (py > 880) continue;
+
+        const alphaP = smoothstep(0, 0.15, pNorm) * (1 - smoothstep(0.8, 1.0, pNorm));
+        ctx.fillStyle = (g.hueVar > 0.5)
+          ? `rgba(68, 38, 20, ${alphaP * 0.85})`
+          : `rgba(38, 20, 10, ${alphaP * 0.95})`;
+
+        ctx.beginPath();
+        ctx.arc(px, py, g.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Coffee Grounds Mound Accumulating at Bottom
+      const moundProgress = smoothstep(0, 4.8, t2);
+      const moundH = moundProgress * 230;
+      const moundW = 280 + moundProgress * 320;
+
+      if (moundH > 5) {
+        ctx.save();
+        ctx.translate(960, 890);
+
+        // Mound shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.beginPath();
+        ctx.ellipse(0, 30, moundW * 1.08, 60, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Mound conical body
+        const moundGrad = ctx.createRadialGradient(0, -moundH * 0.6, 20, 0, 10, moundW);
+        moundGrad.addColorStop(0, '#532e18');
+        moundGrad.addColorStop(0.35, '#3c2010');
+        moundGrad.addColorStop(0.75, '#261309');
+        moundGrad.addColorStop(1, '#140803');
+
+        ctx.fillStyle = moundGrad;
+        ctx.beginPath();
+        ctx.moveTo(-moundW, 20);
+        ctx.quadraticCurveTo(-moundW * 0.5, -moundH * 0.2, 0, -moundH);
+        ctx.quadraticCurveTo(moundW * 0.5, -moundH * 0.2, moundW, 20);
+        ctx.closePath();
+        ctx.fill();
+
+        // Tactile stippling
+        ctx.fillStyle = 'rgba(255, 170, 70, 0.22)';
+        for (let s = 0; s < 60; s++) {
+          const sx = (Math.sin(s * 19.3) * moundW * 0.7) * (1 - (s / 75));
+          const sy = -moundH * (s / 65) + Math.cos(s * 7.1) * 8;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // Stage 3: Espresso Drip & Steam (LONGER, SMOOTHER & RELIABLE)
+    function renderStage3(t3, alpha) {
+      if (alpha <= 0.001) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      const camY = smoothstep(0, 4.8, t3) * -40;
+      ctx.translate(0, camY);
+
+      // Deep dark cafe background
+      const bgGrad = ctx.createRadialGradient(960, 520, 80, 960, 520, 850);
+      bgGrad.addColorStop(0, '#1a110a');
+      bgGrad.addColorStop(0.5, '#0e0804');
+      bgGrad.addColorStop(1, '#050302');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, 1920, 1080);
+
+      // Portafilter Basket at Top (Center 960, 160)
+      ctx.save();
+      ctx.translate(960, 160);
+
+      // Chrome basket rim (clean fillRect)
+      const rimGrad = ctx.createLinearGradient(-260, 0, 260, 0);
+      rimGrad.addColorStop(0, '#383a3d');
+      rimGrad.addColorStop(0.25, '#9ca0a6');
+      rimGrad.addColorStop(0.5, '#f0f3f6');
+      rimGrad.addColorStop(0.75, '#7e8389');
+      rimGrad.addColorStop(1, '#2c2e30');
+      ctx.fillStyle = rimGrad;
+      ctx.fillRect(-250, -40, 500, 45);
+
+      // Extraction mesh base
+      const meshGrad = ctx.createRadialGradient(0, 15, 20, 0, 15, 200);
+      meshGrad.addColorStop(0, '#381e0e');
+      meshGrad.addColorStop(0.7, '#201007');
+      meshGrad.addColorStop(1, '#110804');
+      ctx.fillStyle = meshGrad;
+      ctx.beginPath();
+      ctx.ellipse(0, 15, 220, 38, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Ceramic Cup Below (Center 960, 760)
+      ctx.save();
+      ctx.translate(960, 760);
+
+      // Drop shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.beginPath();
+      ctx.ellipse(0, 110, 290, 65, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cup body (stoneware)
+      const cupGrad = ctx.createLinearGradient(-250, 0, 250, 0);
+      cupGrad.addColorStop(0, '#1c1714');
+      cupGrad.addColorStop(0.3, '#352922');
+      cupGrad.addColorStop(0.7, '#1f1814');
+      cupGrad.addColorStop(1, '#100c0a');
+      ctx.fillStyle = cupGrad;
+      ctx.beginPath();
+      ctx.ellipse(0, 50, 250, 100, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cup rim & interior
+      ctx.fillStyle = '#3d2b20';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 235, 68, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Liquid crema surface
+      const liquidGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, 220);
+      liquidGrad.addColorStop(0, '#c7782b');
+      liquidGrad.addColorStop(0.45, '#783e16');
+      liquidGrad.addColorStop(0.85, '#381b0a');
+      liquidGrad.addColorStop(1, '#1c0c04');
+      ctx.fillStyle = liquidGrad;
+      ctx.beginPath();
+      ctx.ellipse(0, 2, 220, 62, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Concentric crema impact ripples (pulsing smoothly throughout extraction)
+      const rippleProg = smoothstep(0.6, 1.4, t3);
+      if (rippleProg > 0.05) {
+        const ripPhase = (t3 * 1.6) % 1.0;
+        for (let w = 0; w < 3; w++) {
+          const p = (ripPhase + w * 0.33) % 1.0;
+          const rad = p * 180;
+          const alphaRip = (1 - p) * 0.45 * rippleProg;
+          ctx.strokeStyle = `rgba(255, 195, 100, ${alphaRip})`;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.ellipse(0, 2, rad, rad * 0.28, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      // Rich Espresso Stream (Smooth, honey-viscous, connecting Basket to Cup)
+      const streamStart = 200;
+      const streamEnd = 760;
+      const streamProg = smoothstep(0.6, 1.5, t3);
+
+      if (streamProg > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = alpha * streamProg;
+        const sway = Math.sin(t3 * 4.5) * 2.5;
+
+        const streamGrad = ctx.createLinearGradient(960 - 8, streamStart, 960 + 8, streamEnd);
+        streamGrad.addColorStop(0, '#d7872d');
+        streamGrad.addColorStop(0.5, '#7d3712');
+        streamGrad.addColorStop(1, '#cd7d28');
+
+        ctx.fillStyle = streamGrad;
+        ctx.beginPath();
+        ctx.moveTo(960 - 7, streamStart);
+        ctx.lineTo(960 + 7, streamStart);
+        ctx.quadraticCurveTo(960 + sway + 5, 480, 960 + sway + 5, streamEnd);
+        ctx.lineTo(960 + sway - 5, streamEnd);
+        ctx.quadraticCurveTo(960 + sway - 5, 480, 960 - 7, streamStart);
+        ctx.closePath();
+        ctx.fill();
+
+        // Stream highlight line
+        ctx.strokeStyle = 'rgba(255, 215, 140, 0.7)';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.moveTo(960, streamStart + 15);
+        ctx.quadraticCurveTo(960 + sway, 480, 960 + sway, streamEnd - 10);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Elegant Rising Steam (develops smoothly from 1.5s onwards)
+      const steamProg = smoothstep(1.5, 3.2, t3);
+      if (steamProg > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = alpha * steamProg * 0.35;
+        for (let s = 0; s < 4; s++) {
+          const sx = 960 + (s - 1.5) * 60;
+          const sPhase = t3 * 1.8 + s * 1.4;
+          const sway1 = Math.sin(sPhase) * 25;
+          const sway2 = Math.cos(sPhase) * 30;
+
+          ctx.strokeStyle = 'rgba(255, 230, 210, 0.45)';
+          ctx.lineWidth = 11 + s * 2;
+          ctx.beginPath();
+          ctx.moveTo(sx, 740);
+          ctx.bezierCurveTo(sx + sway1, 580, sx + sway2, 430, sx + sway1 * 0.5, 280);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // Stage 4: Steamed Milk Pour & Rosetta Latte Art
+    function renderStage4(t4, alpha) {
+      if (alpha <= 0.001) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      // Overhead bird's-eye macro background
+      const darkBg = ctx.createRadialGradient(960, 540, 100, 960, 540, 950);
+      darkBg.addColorStop(0, '#150f0c');
+      darkBg.addColorStop(0.6, '#0c0705');
+      darkBg.addColorStop(1, '#040202');
+      ctx.fillStyle = darkBg;
+      ctx.fillRect(0, 0, 1920, 1080);
+
+      // Ceramic Cup Top View (Centered at 960, 540)
+      ctx.save();
+      ctx.translate(960, 540);
+
+      // Cup rim outer shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.beginPath();
+      ctx.arc(0, 0, 420, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ceramic cup rim
+      const rimGrad = ctx.createLinearGradient(-400, -400, 400, 400);
+      rimGrad.addColorStop(0, '#362a22');
+      rimGrad.addColorStop(0.35, '#1e1612');
+      rimGrad.addColorStop(0.7, '#2b211a');
+      rimGrad.addColorStop(1, '#110c09');
+      ctx.fillStyle = rimGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, 395, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Deep Crema Surface
+      // Deep Crema Surface (Clipped to interior radius 360)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, 0, 360, 0, Math.PI * 2);
+      ctx.clip();
+
+      const cremaGrad = ctx.createRadialGradient(0, 0, 30, 0, 0, 360);
+      cremaGrad.addColorStop(0, '#a86124');
+      cremaGrad.addColorStop(0.4, '#733912');
+      cremaGrad.addColorStop(0.8, '#3d1a07');
+      cremaGrad.addColorStop(1, '#1e0c03');
+      ctx.fillStyle = cremaGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, 360, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Soft rotational crema ripple swirls during pour
+      ctx.save();
+      for (let r = 1; r <= 3; r++) {
+        const ringRad = 90 * r + Math.sin(t4 * 2.5 + r) * 10;
+        const ringAlpha = (0.16 - r * 0.035) * clamp(t4 / 1.5, 0, 1);
+        ctx.strokeStyle = `rgba(235, 160, 75, ${ringAlpha})`;
+        ctx.lineWidth = 14;
+        ctx.beginPath();
+        ctx.arc(0, 0, ringRad, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Smooth Artisanal Rosetta Latte Art Blooming
+      const artProgress = smoothstep(0.6, 4.2, t4);
+
+      if (artProgress > 0.02) {
+        ctx.save();
+
+        // 7 distinct rosetta leaf tiers (from base to top)
+        const tiers = [
+          { baseY: 170,  w: 75,  h: 32, minProg: 0.05 },
+          { baseY: 115,  w: 125, h: 42, minProg: 0.15 },
+          { baseY: 55,   w: 165, h: 50, minProg: 0.28 },
+          { baseY: -5,   w: 185, h: 52, minProg: 0.42 },
+          { baseY: -65,  w: 160, h: 46, minProg: 0.55 },
+          { baseY: -120, w: 120, h: 38, minProg: 0.68 },
+          { baseY: -168, w: 75,  h: 30, minProg: 0.78 }
+        ];
+
+        for (let i = 0; i < tiers.length; i++) {
+          const tier = tiers[i];
+          if (artProgress < tier.minProg) continue;
+
+          // Smooth scale-in for this tier
+          const tierProg = clamp((artProgress - tier.minProg) / 0.22, 0, 1);
+          const easedScale = 0.5 + 0.5 * Math.sin((tierProg - 0.5) * Math.PI);
+          const curW = tier.w * easedScale;
+          const curH = tier.h * easedScale;
+          const curY = tier.baseY + (1 - tierProg) * 10;
+
+          // Feathered microfoam gradient fading softly into rich golden crema
+          const wingGrad = ctx.createRadialGradient(0, curY, curW * 0.08, 0, curY, curW * 1.05);
+          wingGrad.addColorStop(0, 'rgba(255, 255, 255, 0.96)');
+          wingGrad.addColorStop(0.55, 'rgba(255, 248, 238, 0.88)');
+          wingGrad.addColorStop(0.82, 'rgba(235, 195, 145, 0.55)');
+          wingGrad.addColorStop(1, 'rgba(165, 95, 30, 0)');
+
+          ctx.fillStyle = wingGrad;
+
+          // Left wing
+          ctx.beginPath();
+          ctx.moveTo(0, curY + curH * 0.4);
+          ctx.bezierCurveTo(-curW * 0.45, curY + curH * 0.85, -curW, curY + curH * 0.2, -curW, curY - curH * 0.25);
+          ctx.bezierCurveTo(-curW * 0.75, curY - curH * 0.75, -curW * 0.3, curY - curH * 0.45, 0, curY - curH * 0.6);
+          ctx.closePath();
+          ctx.fill();
+
+          // Right wing
+          ctx.beginPath();
+          ctx.moveTo(0, curY + curH * 0.4);
+          ctx.bezierCurveTo(curW * 0.45, curY + curH * 0.85, curW, curY + curH * 0.2, curW, curY - curH * 0.25);
+          ctx.bezierCurveTo(curW * 0.75, curY - curH * 0.75, curW * 0.3, curY - curH * 0.45, 0, curY - curH * 0.6);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Top Heart Crown
+        if (artProgress > 0.82) {
+          const crownScale = clamp((artProgress - 0.82) / 0.16, 0, 1);
+          const crownY = -205;
+          const r = 16 * crownScale;
+
+          const crownGrad = ctx.createRadialGradient(0, crownY, 2, 0, crownY, 32);
+          crownGrad.addColorStop(0, 'rgba(255, 255, 255, 0.98)');
+          crownGrad.addColorStop(0.6, 'rgba(255, 245, 235, 0.9)');
+          crownGrad.addColorStop(0.9, 'rgba(235, 195, 145, 0.5)');
+          crownGrad.addColorStop(1, 'rgba(165, 95, 30, 0)');
+
+          ctx.fillStyle = crownGrad;
+          ctx.beginPath();
+          ctx.arc(-r * 0.75, crownY - r * 0.2, r, 0, Math.PI * 2);
+          ctx.arc(r * 0.75, crownY - r * 0.2, r, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.moveTo(-r * 1.55, crownY - r * 0.1);
+          ctx.lineTo(r * 1.55, crownY - r * 0.1);
+          ctx.lineTo(0, crownY + r * 1.5);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // Draw-Through Center Stem Cut
+        if (artProgress > 0.72) {
+          const cutProg = clamp((artProgress - 0.72) / 0.26, 0, 1);
+          const startY = -225;
+          const endY = lerp(startY, 205, cutProg);
+
+          // White stem line
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+          ctx.lineWidth = 5;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(0, startY);
+          ctx.lineTo(0, endY);
+          ctx.stroke();
+
+          // Crema shadow core in stem cut
+          ctx.strokeStyle = 'rgba(135, 65, 20, 0.55)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(0, startY + 2);
+          ctx.lineTo(0, endY - 4);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      ctx.restore(); // end crema clip
+      ctx.restore(); // end cup translate
+
+      // Steamed Milk Pouring Stream
+      if (t4 < 4.2) {
+        const pourAlpha = (t4 < 3.6) ? 1.0 : (1.0 - smoothstep(3.6, 4.2, t4));
+        ctx.save();
+        ctx.globalAlpha = alpha * pourAlpha;
+
+        const streamTargetX = 960 + Math.sin(t4 * 8) * 6;
+        const streamTargetY = 540 + Math.cos(t4 * 6) * 8;
+
+        const milkStream = ctx.createLinearGradient(720, 0, streamTargetX, streamTargetY);
+        milkStream.addColorStop(0, '#ffffff');
+        milkStream.addColorStop(0.7, '#fff6ec');
+        milkStream.addColorStop(1, 'rgba(255, 255, 255, 0.95)');
+
+        ctx.fillStyle = milkStream;
+        ctx.beginPath();
+        ctx.moveTo(700, 0);
+        ctx.quadraticCurveTo(810, 240, streamTargetX - 4, streamTargetY);
+        ctx.lineTo(streamTargetX + 4, streamTargetY);
+        ctx.quadraticCurveTo(830, 240, 740, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        // Gentle contact ripple
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(streamTargetX, streamTargetY, 14 + (t4 % 0.5) * 28, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // Stage 5: Finished Cup, Ambient Glow & Floating Embers
+    function renderStage5(t5, alpha) {
+      if (alpha <= 0.001) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      // Slow cinematic pullback
+      const camScale = 1.0 - smoothstep(0, 4.8, t5) * 0.08;
+      ctx.translate(960, 540);
+      ctx.scale(camScale, camScale);
+      ctx.translate(-960, -540);
+
+      // Deep obsidian sanctuary background
+      const darkBack = ctx.createRadialGradient(960, 540, 100, 960, 540, 1050);
+      darkBack.addColorStop(0, '#1c120c');
+      darkBack.addColorStop(0.45, '#0f0805');
+      darkBack.addColorStop(1, '#050302');
+      ctx.fillStyle = darkBack;
+      ctx.fillRect(0, 0, 1920, 1080);
+
+      // Volumetric Warm Amber Halo Glow behind cup
+      const haloGrad = ctx.createRadialGradient(960, 530, 50, 960, 530, 680);
+      haloGrad.addColorStop(0, 'rgba(255, 125, 25, 0.28)');
+      haloGrad.addColorStop(0.4, 'rgba(215, 80, 15, 0.12)');
+      haloGrad.addColorStop(0.8, 'rgba(120, 35, 5, 0.04)');
+      haloGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = haloGrad;
+      ctx.fillRect(0, 0, 1920, 1080);
+
+      // Rustic Slate Coaster (Center 960, 680)
+      ctx.save();
+      ctx.translate(960, 680);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      ctx.beginPath();
+      ctx.ellipse(0, 50, 480, 130, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Slate stone coaster
+      const coasterGrad = ctx.createLinearGradient(-420, 0, 420, 0);
+      coasterGrad.addColorStop(0, '#1a1614');
+      coasterGrad.addColorStop(0.5, '#2e2722');
+      coasterGrad.addColorStop(1, '#14100e');
+      ctx.fillStyle = coasterGrad;
+      ctx.beginPath();
+      ctx.ellipse(0, 40, 440, 105, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // The Complete Artisanal Ceramic Demitasse
+      ctx.save();
+      ctx.translate(960, 520);
+
+      // Cup body 3D perspective
+      const cupBody = ctx.createLinearGradient(-320, 0, 320, 0);
+      cupBody.addColorStop(0, '#1a1410');
+      cupBody.addColorStop(0.2, '#382a20');
+      cupBody.addColorStop(0.5, '#4a372b');
+      cupBody.addColorStop(0.8, '#261b14');
+      cupBody.addColorStop(1, '#110c08');
+      ctx.fillStyle = cupBody;
+      ctx.beginPath();
+      ctx.ellipse(0, 80, 310, 130, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cup rim glazed oval
+      ctx.fillStyle = '#4c392c';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 290, 85, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inside coffee liquid surface (Clipped to cup interior)
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(0, 2, 274, 76, 0, 0, Math.PI * 2);
+      ctx.clip();
+
+      const coffeeSurface = ctx.createRadialGradient(0, 0, 20, 0, 0, 270);
+      coffeeSurface.addColorStop(0, '#a25e24');
+      coffeeSurface.addColorStop(0.35, '#723712');
+      coffeeSurface.addColorStop(0.75, '#381807');
+      coffeeSurface.addColorStop(1, '#160803');
+      ctx.fillStyle = coffeeSurface;
+      ctx.beginPath();
+      ctx.ellipse(0, 2, 275, 78, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Outer crema ring
+      ctx.strokeStyle = 'rgba(215, 140, 55, 0.32)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.ellipse(0, 2, 258, 71, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Clean, Artisanal Rosetta Latte Art in perspective (No white cone artifact)
+      const tiers = [
+        { y: 38,  w: 38, h: 9 },
+        { y: 26,  w: 62, h: 11 },
+        { y: 12,  w: 82, h: 13 },
+        { y: -2,  w: 92, h: 14 },
+        { y: -16, w: 82, h: 13 },
+        { y: -30, w: 62, h: 11 },
+        { y: -42, w: 40, h: 9 }
+      ];
+
+      for (let i = 0; i < tiers.length; i++) {
+        const { y, w, h } = tiers[i];
+
+        const petalGrad = ctx.createRadialGradient(0, y, 2, 0, y, w);
+        petalGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+        petalGrad.addColorStop(0.5, 'rgba(255, 246, 235, 0.88)');
+        petalGrad.addColorStop(0.82, 'rgba(238, 204, 162, 0.6)');
+        petalGrad.addColorStop(1, 'rgba(180, 110, 45, 0)');
+
+        ctx.fillStyle = petalGrad;
+
+        // Symmetrical rosetta leaf wings
+        ctx.beginPath();
+        ctx.moveTo(0, y + h * 0.45);
+        ctx.bezierCurveTo(-w * 0.45, y + h * 0.9, -w, y + h * 0.15, -w, y - h * 0.3);
+        ctx.bezierCurveTo(-w * 0.75, y - h * 0.8, -w * 0.3, y - h * 0.4, 0, y - h * 0.6);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(0, y + h * 0.45);
+        ctx.bezierCurveTo(w * 0.45, y + h * 0.9, w, y + h * 0.15, w, y - h * 0.3);
+        ctx.bezierCurveTo(w * 0.75, y - h * 0.8, w * 0.3, y - h * 0.4, 0, y - h * 0.6);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Heart crown at top
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.beginPath();
+      ctx.arc(-7, -52, 6.5, 0, Math.PI * 2);
+      ctx.arc(7, -52, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-13, -50);
+      ctx.lineTo(13, -50);
+      ctx.lineTo(0, -41);
+      ctx.closePath();
+      ctx.fill();
+
+      // Fine central stem cut through the rosetta
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, -54);
+      ctx.lineTo(0, 44);
+      ctx.stroke();
+
+      // Delicate crema accent along stem
+      ctx.strokeStyle = 'rgba(110, 50, 15, 0.45)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(1.2, -52);
+      ctx.lineTo(1.2, 42);
+      ctx.stroke();
+
+      // Silky specular gloss across surface
+      const glossGrad = ctx.createLinearGradient(-150, -40, 100, 30);
+      glossGrad.addColorStop(0, 'rgba(255, 255, 255, 0.16)');
+      glossGrad.addColorStop(0.3, 'rgba(255, 255, 255, 0.05)');
+      glossGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = glossGrad;
+      ctx.beginPath();
+      ctx.ellipse(-40, -15, 140, 35, -0.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore(); // Restore clip
+
+      // Glaze rim highlight
+      ctx.strokeStyle = 'rgba(255, 215, 160, 0.45)';
+      ctx.lineWidth = 2.8;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 287, 83, 0, Math.PI * 0.95, Math.PI * 1.55);
+      ctx.stroke();
+
+      ctx.restore();
+
+      // Rising Steam Plumes
+      ctx.save();
+      for (let s = 0; s < 5; s++) {
+        const sTime = t5 * 1.4 + s * 1.2;
+        const alphaSteam = (0.2 + 0.1 * Math.sin(sTime * 2.5)) * smoothstep(0, 1.5, t5);
+        ctx.strokeStyle = `rgba(255, 225, 200, ${alphaSteam})`;
+        ctx.lineWidth = 12 + s * 3;
+        ctx.beginPath();
+        ctx.moveTo(960 + (s - 2) * 55, 490);
+        for (let y = 490; y > 150; y -= 40) {
+          const wave = Math.sin((y * 0.01) - sTime) * (25 + (490 - y) * 0.15);
+          ctx.lineTo(960 + (s - 2) * 55 + wave, y);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Floating Amber Embers
+      ctx.save();
+      for (let e = 0; e < EMBERS.length; e++) {
+        const emb = EMBERS[e];
+        const loopTime = (t5 * emb.speed + emb.phase * 50) % 1100;
+        const ey = 1050 - loopTime;
+        const ex = emb.baseX + Math.sin(t5 * emb.swayFreq + emb.phase) * emb.swayAmp;
+
+        if (ey < 50 || ey > 1050) continue;
+
+        const flicker = 0.65 + 0.35 * Math.sin(t5 * 14.0 + e);
+        const emberAlpha = flicker * smoothstep(0, 1.2, t5);
+
+        ctx.fillStyle = (emb.heat > 0.5)
+          ? `rgba(255, 220, 120, ${emberAlpha})`
+          : `rgba(255, 140, 30, ${emberAlpha})`;
+
+        ctx.beginPath();
+        ctx.arc(ex, ey, emb.size * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        const glowRad = emb.size * 3.5;
+        const gGrad = ctx.createRadialGradient(ex, ey, 0, ex, ey, glowRad);
+        gGrad.addColorStop(0, `rgba(255, 120, 20, ${emberAlpha * 0.5})`);
+        gGrad.addColorStop(1, 'rgba(255, 60, 0, 0)');
+        ctx.fillStyle = gGrad;
+        ctx.beginPath();
+        ctx.arc(ex, ey, glowRad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      ctx.restore();
+    }
+
+    // =========================================================================
+    // MASTER COMPOSITOR & TIMELINE ORCHESTRATION (24.0s DURATION @ 30FPS)
+    // =========================================================================
+
+    function renderFrame(t) {
+      t = clamp(t, 0, 24.0);
+
+      // Clear Canvas
+      ctx.fillStyle = '#080504';
+      ctx.fillRect(0, 0, 1920, 1080);
+
+      // 5 Stages across 24 seconds (4.8s each) with 0.6s Crossfade Dissolves
+      // Stage 1: 0.0 .. 4.8s
+      // Stage 2: 4.8 .. 9.6s
+      // Stage 3: 9.6 .. 14.4s
+      // Stage 4: 14.4 .. 19.2s
+      // Stage 5: 19.2 .. 24.0s
+
+      const cross = 0.6;
+      let a1 = 0, a2 = 0, a3 = 0, a4 = 0, a5 = 0;
+
+      if (t < 4.8) {
+        a1 = 1.0;
+        if (t > 4.8 - cross) {
+          const f = (t - (4.8 - cross)) / cross;
+          a1 = 1.0 - smoothstep(0, 1, f);
+          a2 = smoothstep(0, 1, f);
+        }
+      } else if (t < 9.6) {
+        a2 = 1.0;
+        if (t > 9.6 - cross) {
+          const f = (t - (9.6 - cross)) / cross;
+          a2 = 1.0 - smoothstep(0, 1, f);
+          a3 = smoothstep(0, 1, f);
+        }
+      } else if (t < 14.4) {
+        a3 = 1.0;
+        if (t > 14.4 - cross) {
+          const f = (t - (14.4 - cross)) / cross;
+          a3 = 1.0 - smoothstep(0, 1, f);
+          a4 = smoothstep(0, 1, f);
+        }
+      } else if (t < 19.2) {
+        a4 = 1.0;
+        if (t > 19.2 - cross) {
+          const f = (t - (19.2 - cross)) / cross;
+          a4 = 1.0 - smoothstep(0, 1, f);
+          a5 = smoothstep(0, 1, f);
+        }
+      } else {
+        a5 = 1.0;
+      }
+
+      // Local normalized time per stage (0.0 .. 4.8)
+      const tL1 = clamp(t, 0, 4.8);
+      const tL2 = clamp(t - 4.8, 0, 4.8);
+      const tL3 = clamp(t - 9.6, 0, 4.8);
+      const tL4 = clamp(t - 14.4, 0, 4.8);
+      const tL5 = clamp(t - 19.2, 0, 4.8);
+
+      // Render Active Stages
+      if (a1 > 0) renderStage1(tL1, a1);
+      if (a2 > 0) renderStage2(tL2, a2);
+      if (a3 > 0) renderStage3(tL3, a3);
+      if (a4 > 0) renderStage4(tL4, a4);
+      if (a5 > 0) renderStage5(tL5, a5);
+
+      // Master Cinematic Letterbox Vignette
+      const masterVig = ctx.createRadialGradient(960, 540, 500, 960, 540, 1100);
+      masterVig.addColorStop(0, 'rgba(0, 0, 0, 0)');
+      masterVig.addColorStop(0.7, 'rgba(8, 4, 2, 0.35)');
+      masterVig.addColorStop(1, 'rgba(4, 2, 1, 0.85)');
+      ctx.fillStyle = masterVig;
+      ctx.fillRect(0, 0, 1920, 1080);
+    }
+
+    // =========================================================================
+    // GSAP TIMELINE REGISTRATION (HyperFrames contract)
+    // =========================================================================
+
+    const animState = { time: 0 };
+    const tl = gsap.timeline({ paused: true });
+
+    tl.to(animState, {
+      time: 24,
+      duration: 24,
+      ease: "none",
+      onUpdate: () => {
+        renderFrame(animState.time);
+      }
+    });
+
+    // Initial render at t = 0
+    renderFrame(0);
+
+    // Register with HyperFrames
+    window.__timelines = window.__timelines || {};
+    window.__timelines["main"] = tl;
+    tl.seek(0);
+  </script>
+</body>
+</html>

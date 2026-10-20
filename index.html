@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>EMBER — Artisanal Single-Origin Coffee Experience</title>
+  <meta name="description" content="A cinematic coffee making journey from bean to cup. Scroll to experience the roast, grind, brew, and pour." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&display=swap" rel="stylesheet">
+  <style>
+    /* Theme overrides for Ember */
+    :root, .sw-root {
+      --sw-nav-height: clamp(54px, 7vh, 66px);
+      --sw-bg: #090605;
+      --sw-ink: #f8efe6;
+      --sw-ink-soft: #b09e91;
+      --sw-accent: #e58e26;
+      --sw-font-display: "Cinzel", "Playfair Display", Georgia, serif;
+    }
+
+    /* Hero section header banner */
+    .hero-banner {
+      position: fixed;
+      top: 0;
+      left: clamp(16px, 5vw, 75px);
+      padding-top: calc(var(--sw-nav-height, 64px) + clamp(24px, 4vh, 44px));
+      z-index: 50;
+      pointer-events: none;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      max-width: min(85vw, 540px);
+      box-sizing: border-box;
+    }
+    .hero-banner__tag {
+      font-size: clamp(0.7rem, 0.85vw, 0.78rem);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--sw-accent);
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: inline-block;
+    }
+    .hero-banner__title {
+      font-family: var(--sw-font-display);
+      font-size: clamp(2.2rem, 4.5vw, 3.8rem);
+      font-weight: 900;
+      line-height: 1.0;
+      color: #fff;
+      letter-spacing: -0.01em;
+      margin: 0;
+      text-shadow: 0 4px 30px rgba(0, 0, 0, 0.9);
+    }
+    .hero-banner__desc {
+      margin-top: clamp(10px, 1.6vh, 16px);
+      font-size: clamp(0.9rem, 1.1vw, 1.1rem);
+      line-height: 1.5;
+      color: var(--sw-ink-soft);
+      max-width: 42ch;
+      text-shadow: 0 2px 16px rgba(0, 0, 0, 0.9);
+    }
+    .hero-banner.is-scrolled {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+
+    /* Hero visual element: steaming cup and drifting beans */
+    .hero-visual {
+      position: fixed;
+      top: calc(var(--sw-nav-height, 64px) + (100dvh - var(--sw-nav-height, 64px)) * 0.44);
+      right: clamp(24px, 10vw, 150px);
+      transform: translateY(-50%);
+      width: clamp(220px, 24vw, 320px);
+      height: clamp(220px, 24vw, 320px);
+      pointer-events: none;
+      z-index: 45;
+      transition: opacity 0.45s ease, transform 0.45s ease;
+      filter: drop-shadow(0 8px 32px rgba(229, 142, 38, 0.15));
+    }
+    .hero-visual.is-scrolled {
+      opacity: 0;
+      transform: translateY(calc(-50% - 20px)) scale(0.96);
+    }
+    .hero-visual svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    /* Steam animations */
+    .hero-steam--1 {
+      animation: steamWisp1 3.8s ease-in-out infinite;
+    }
+    .hero-steam--2 {
+      animation: steamWisp2 4.6s ease-in-out infinite 0.6s;
+    }
+    .hero-steam--3 {
+      animation: steamWisp3 4.2s ease-in-out infinite 1.2s;
+    }
+
+    @keyframes steamWisp1 {
+      0% { opacity: 0; transform: translateY(6px) scaleY(0.92); }
+      35% { opacity: 0.5; }
+      75% { opacity: 0.25; }
+      100% { opacity: 0; transform: translateY(-22px) scaleY(1.08); }
+    }
+    @keyframes steamWisp2 {
+      0% { opacity: 0; transform: translateY(8px) scaleY(0.9); }
+      40% { opacity: 0.6; }
+      80% { opacity: 0.3; }
+      100% { opacity: 0; transform: translateY(-26px) scaleY(1.1); }
+    }
+    @keyframes steamWisp3 {
+      0% { opacity: 0; transform: translateY(6px) scaleY(0.94); }
+      35% { opacity: 0.45; }
+      70% { opacity: 0.2; }
+      100% { opacity: 0; transform: translateY(-20px) scaleY(1.06); }
+    }
+
+    /* Drifting beans animations */
+    .hero-drift-bean--1 {
+      animation: beanDrift1 5.2s ease-in-out infinite alternate;
+    }
+    .hero-drift-bean--2 {
+      animation: beanDrift2 6.4s ease-in-out infinite alternate 0.8s;
+    }
+    .hero-drift-bean--3 {
+      animation: beanDrift3 5.8s ease-in-out infinite alternate 1.4s;
+    }
+    .hero-drift-bean--4 {
+      animation: beanDrift4 6.0s ease-in-out infinite alternate 0.4s;
+    }
+
+    @keyframes beanDrift1 {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      100% { transform: translate(-4px, -12px) rotate(-6deg); }
+    }
+    @keyframes beanDrift2 {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      100% { transform: translate(6px, -14px) rotate(8deg); }
+    }
+    @keyframes beanDrift3 {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      100% { transform: translate(5px, 10px) rotate(-5deg); }
+    }
+    @keyframes beanDrift4 {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      100% { transform: translate(-6px, 8px) rotate(6deg); }
+    }
+
+    @media (max-width: 860px) {
+      .hero-banner {
+        top: calc(var(--sw-nav-height, 54px) + clamp(12px, 2vh, 20px));
+        left: clamp(14px, 4vw, 24px);
+        right: clamp(14px, 4vw, 24px);
+        max-width: none;
+      }
+      .hero-banner__title {
+        font-size: clamp(2.0rem, 7vw, 2.8rem);
+      }
+      .hero-visual {
+        right: auto;
+        left: 50%;
+        top: auto;
+        bottom: clamp(40px, 10vh, 90px);
+        transform: translateX(-50%);
+        width: 170px;
+        height: 170px;
+        opacity: 0.7;
+      }
+      .hero-visual.is-scrolled {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="top"></div>
+
+  <!-- Hero Header Greeting -->
+  <header id="hero" class="hero-banner">
+    <span class="hero-banner__tag">Single-Origin Craft</span>
+    <h1 class="hero-banner__title">EMBER</h1>
+    <p class="hero-banner__desc">
+      A cinematic harvest-to-cup ritual. Scroll down to experience the craft of artisanal coffee.
+    </p>
+  </header>
+
+  <!-- Hero Visual: Subtle Steaming Cup Silhouette & Drifting Beans -->
+  <div id="hero-visual" class="hero-visual" aria-hidden="true">
+    <svg viewBox="0 0 320 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="heroGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#e58e26" stop-opacity="0.22" />
+          <stop offset="60%" stop-color="#e58e26" stop-opacity="0.04" />
+          <stop offset="100%" stop-color="#e58e26" stop-opacity="0" />
+        </radialGradient>
+      </defs>
+      
+      <!-- Ambient warmth glow circle -->
+      <circle cx="160" cy="160" r="140" fill="url(#heroGlow)" />
+      
+      <!-- Drifting Coffee Beans -->
+      <g class="hero-drift-bean hero-drift-bean--1">
+        <g transform="translate(65, 90) rotate(-22)">
+          <ellipse cx="0" cy="0" rx="13" ry="8.5" fill="#1b120c" stroke="#e58e26" stroke-width="1.2" stroke-opacity="0.6" />
+          <path d="M -8,-0.5 Q 0,3.5 8,-0.5" stroke="#f8efe6" stroke-width="1.2" stroke-opacity="0.45" stroke-linecap="round" />
+        </g>
+      </g>
+      
+      <g class="hero-drift-bean hero-drift-bean--2">
+        <g transform="translate(255, 110) rotate(28)">
+          <ellipse cx="0" cy="0" rx="12" ry="8" fill="#1b120c" stroke="#e58e26" stroke-width="1.2" stroke-opacity="0.55" />
+          <path d="M -7,-0.5 Q 0,3 7,-0.5" stroke="#f8efe6" stroke-width="1.1" stroke-opacity="0.4" stroke-linecap="round" />
+        </g>
+      </g>
+      
+      <g class="hero-drift-bean hero-drift-bean--3">
+        <g transform="translate(240, 235) rotate(-15)">
+          <ellipse cx="0" cy="0" rx="14" ry="9" fill="#1b120c" stroke="#e58e26" stroke-width="1.2" stroke-opacity="0.6" />
+          <path d="M -9,-0.5 Q 0,4 9,-0.5" stroke="#f8efe6" stroke-width="1.2" stroke-opacity="0.45" stroke-linecap="round" />
+        </g>
+      </g>
+
+      <g class="hero-drift-bean hero-drift-bean--4">
+        <g transform="translate(75, 220) rotate(35)">
+          <ellipse cx="0" cy="0" rx="11" ry="7.5" fill="#1b120c" stroke="#e58e26" stroke-width="1.1" stroke-opacity="0.5" />
+          <path d="M -6.5,-0.5 Q 0,3 6.5,-0.5" stroke="#f8efe6" stroke-width="1" stroke-opacity="0.4" stroke-linecap="round" />
+        </g>
+      </g>
+
+      <!-- Rising Steam Wisps -->
+      <g class="hero-steams" stroke="#f8efe6" stroke-linecap="round" fill="none">
+        <path class="hero-steam hero-steam--1" d="M 142,135 C 132,108 148,82 138,52 C 130,28 142,12 136,0" stroke-width="1.8" stroke-opacity="0.35" />
+        <path class="hero-steam hero-steam--2" d="M 160,130 C 172,100 152,70 166,40 C 174,18 162,6 166,0" stroke-width="2.2" stroke-opacity="0.45" />
+        <path class="hero-steam hero-steam--3" d="M 178,135 C 168,106 186,80 176,50 C 170,25 180,12 176,0" stroke-width="1.8" stroke-opacity="0.35" />
+      </g>
+
+      <!-- Demitasse Saucer -->
+      <ellipse cx="160" cy="224" rx="86" ry="12" fill="#140e0a" stroke="#e58e26" stroke-width="1.5" stroke-opacity="0.4" />
+      <ellipse cx="160" cy="222" rx="76" ry="9" stroke="#f8efe6" stroke-width="1" stroke-opacity="0.25" fill="none" />
+
+      <!-- Cup Body -->
+      <path d="M 104,142 C 104,202 124,218 160,218 C 196,218 216,202 216,142 Z" fill="#160f0b" stroke="#e58e26" stroke-width="1.6" stroke-opacity="0.55" />
+      
+      <!-- Cup Rim & Crema Surface -->
+      <ellipse cx="160" cy="142" rx="56" ry="13" fill="#20130c" stroke="#f8efe6" stroke-width="1.4" stroke-opacity="0.4" />
+      <ellipse cx="160" cy="144" rx="50" ry="10.5" fill="#3a1e10" stroke="#e58e26" stroke-width="1.2" stroke-opacity="0.6" />
+      <!-- Crema Golden Core Accent -->
+      <ellipse cx="160" cy="144" rx="22" ry="4.5" fill="#e58e26" fill-opacity="0.35" />
+
+      <!-- Demitasse Handle -->
+      <path d="M 213,152 C 238,152 242,192 208,198" fill="none" stroke="#f8efe6" stroke-width="2.4" stroke-opacity="0.4" stroke-linecap="round" />
+      <path d="M 213,156 C 233,156 237,188 210,193" fill="none" stroke="#e58e26" stroke-width="1.2" stroke-opacity="0.5" stroke-linecap="round" />
+    </svg>
+  </div>
+
+  <!-- Mount Container for Scroll World Engine -->
+  <div id="world"></div>
+
+  <!-- Scrub Engine with version cache buster -->
+  <script src="scrub-engine.js?v=3.2"></script>
+  <script>
+    // Hero banner & visual scroll-out listener
+    const heroBanner = document.getElementById('hero');
+    const heroVisual = document.getElementById('hero-visual');
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY || window.pageYOffset;
+      if (y > window.innerHeight * 0.18) {
+        heroBanner?.classList.add('is-scrolled');
+        heroVisual?.classList.add('is-scrolled');
+      } else {
+        heroBanner?.classList.remove('is-scrolled');
+        heroVisual?.classList.remove('is-scrolled');
+      }
+    }, { passive: true });
+
+    // Mount Ember Scroll-Scrubbed Experience
+    mountScrollWorld(document.getElementById('world'), {
+      brand: { name: 'EMBER', href: '#top' },
+      cta: { label: "Reserve Roaster's Batch", href: '#enjoy' },
+      hint: 'SCROLL TO FLY THROUGH',
+      poster: 'assets/poster.webp',
+      video: 'assets/coffee-scrub-1080p.mp4',
+      videoMobile: 'assets/coffee-scrub-720p.mp4',
+      scrollPerSection: 1.5,
+      sections: [
+        {
+          id: 'select',
+          label: 'Select',
+          accent: '#ffa726',
+          still: 'assets/stills/select.webp',
+          eyebrow: '01 / 05 — SELECT',
+          title: 'The Harvest',
+          body: 'Single-origin Arabica cherries grown at 2,100 meters in volcanic soil. Sun-ripened and meticulously hand-sorted for dense, concentrated sweetness.',
+          tags: ['Altitude 2,100m', 'Micro-Lot', 'Hand-Sorted']
+        },
+        {
+          id: 'grind',
+          label: 'Grind',
+          accent: '#e67e22',
+          still: 'assets/stills/grind.webp',
+          eyebrow: '02 / 05 — GRIND',
+          title: 'The Mill',
+          body: 'Bimodal conical ceramic burrs rotate at low RPM to prevent thermal degradation, shaving beans into a uniform kinetic cascade of fragrant grounds.',
+          tags: ['Ceramic Burrs', 'Zero Retention', 'Micron Precision']
+        },
+        {
+          id: 'brew',
+          label: 'Brew',
+          accent: '#d35400',
+          still: 'assets/stills/brew.webp',
+          eyebrow: '03 / 05 — BREW',
+          title: 'The Extraction',
+          body: 'Low-pressure pre-infusion saturates the coffee bed before 9-bar precision extraction releases honey-viscous espresso with golden hazelnut crema.',
+          tags: ['9-Bar Pressure', '93.5°C PID', 'Saturated Puck']
+        },
+        {
+          id: 'pour',
+          label: 'Pour',
+          accent: '#f39c12',
+          still: 'assets/stills/pour.webp',
+          eyebrow: '04 / 05 — POUR',
+          title: 'The Craft',
+          body: 'Velvety microfoam milk steamed to 62°C plunges beneath the surface, then rebounds to bloom into an intricate, symmetrical rosetta pattern.',
+          tags: ['Microfoam 62°C', 'Velvet Sheen', 'Rosetta Art']
+        },
+        {
+          id: 'enjoy',
+          label: 'Enjoy',
+          accent: '#ff9f1c',
+          still: 'assets/stills/enjoy.webp',
+          eyebrow: '05 / 05 — ENJOY',
+          title: 'The Cup',
+          body: 'Served in handcrafted obsidian stoneware. Notes of dark Ecuadorian cacao, toasted hazelnut, and warm amber honey lingering in peaceful solace.',
+          tags: ['Dark Cacao', 'Spiced Honey', 'Obsidian Stoneware'],
+          cta: {
+            primary: { label: "Reserve Roaster's Batch", href: '#reserve' },
+            secondary: { label: 'Explore Blend Origin', href: '#origin' }
+          }
+        }
+      ]
+    });
+  </script>
+</body>
+</html>
